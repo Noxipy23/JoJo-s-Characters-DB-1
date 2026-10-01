@@ -1,0 +1,17 @@
+# Entorno virtual (se recrea con: python -m venv venv)
+venv/
+.venv/
+
+# Base de datos local (tus datos; se crea sola al arrancar)
+*.db
+*.sqlite3
+
+# Caché de Python
+__pycache__/
+*.pyc
+
+# Archivos de editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

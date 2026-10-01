@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JoJo DB</title>
+<style>
+:root{--bg:#faf7ff;--card:#fff;--tx:#1d1530;--mut:#6b6280;--ac:#7a2fd0;--bd:#e2d9f0}
+@media (prefers-color-scheme:dark){:root{--bg:#14101f;--card:#1e182e;--tx:#f0eaff;--mut:#a79fc0;--ac:#b98cff;--bd:#352b4d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,sans-serif;line-height:1.4}
+main{max-width:860px;margin:0 auto;padding:20px 16px 40px}
+h1{margin:0 0 4px;color:var(--ac)}
+p.s{margin:0 0 18px;color:var(--mut)}
+.box{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:16px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+label{font-size:.8rem;color:var(--mut);display:block;margin-bottom:3px}
+input,select,textarea{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+button{padding:8px 14px;border:0;border-radius:8px;background:var(--ac);color:var(--bg);font:inherit;font-weight:600;cursor:pointer}
+button.o{background:transparent;color:var(--ac);border:1px solid var(--ac)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.c h3{margin:0 0 4px}
+.tag{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:99px;background:var(--ac);color:var(--bg);margin-bottom:6px}
+.c p{margin:4px 0;font-size:.9rem}
+.c button{margin-top:8px;padding:4px 10px;font-size:.8rem}
+</style>
+</head>
+<body>
+<main>
+<h1>JoJo DB</h1>
+<p class="s">Datos guardados en SQLite mediante Flask</p>
+
+<div class="box">
+<form id="f">
+<div class="g">
+<div><label>Nombre</label><input id="n" required></div>
+<div><label>Parte</label><select id="p"></select></div>
+<div><label>Stand</label><input id="s"></div>
+<div><label>Habilidad</label><input id="h"></div>
+</div>
+<div style="margin-top:10px"><label>Notas</label><textarea id="t" rows="2"></textarea></div>
+<div style="margin-top:10px"><button type="submit">Añadir personaje</button></div>
+</form>
+</div>
+
+<div class="box">
+<div class="g">
+<div><label>Buscar</label><input id="q" placeholder="Nombre, stand..."></div>
+<div><label>Filtrar por parte</label><select id="fp"></select></div>
+</div>
+</div>
+
+<div id="list" class="cards"></div>
+</main>
+
+<script>
+const PARTES = ["1 - Phantom Blood","2 - Battle Tendency","3 - Stardust Crusaders","4 - Diamond is Unbreakable","5 - Golden Wind","6 - Stone Ocean","7 - Steel Ball Run","8 - JoJolion","9 - The JOJOLands"];
+const $ = id => document.getElementById(id);
+
+$("p").innerHTML = PARTES.map(x => `<option>${x}</option>`).join("");
+$("fp").innerHTML = '<option value="">Todas</option>' + PARTES.map(x => `<option>${x}</option>`).join("");
+
+// Crea un elemento con texto seguro (textContent no interpreta HTML)
+function el(tag, text, cls) {
+  const e = document.createElement(tag);
+  if (text) e.textContent = text;
+  if (cls) e.className = cls;
+  return e;
+}
+
+async function cargar() {
+  const params = new URLSearchParams({ q: $("q").value, parte: $("fp").value });
+  const res = await fetch("/api/personajes?" + params);
+  const datos = await res.json();
+  const lista = $("list");
+  lista.replaceChildren();
+  if (!datos.length) { lista.append(el("p", "Aún no hay personajes.", "s")); return; }
+
+  for (const c of datos) {
+    const card = el("div", "", "c");
+    card.append(el("span", c.parte, "tag"), el("h3", c.nombre));
+    if (c.stand) card.append(el("p", "Stand: " + c.stand));
+    if (c.habilidad) card.append(el("p", "Habilidad: " + c.habilidad));
+    if (c.notas) card.append(el("p", c.notas));
+    const btn = el("button", "Eliminar", "o");
+    btn.onclick = async () => {
+      await fetch("/api/personajes/" + c.id, { method: "DELETE" });
+      cargar();
+    };
+    card.append(btn);
+    lista.append(card);
+  }
+}
+
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const res = await fetch("/api/personajes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      nombre: $("n").value, parte: $("p").value,
+      stand: $("s").value, habilidad: $("h").value, notas: $("t").value
+    })
+  });
+  if (res.ok) { e.target.reset(); cargar(); }
+  else alert((await res.json()).error);
+});
+
+$("q").addEventListener("input", cargar);
+$("fp").addEventListener("change", cargar);
+cargar();
+</script>
+</body>
+</html>
